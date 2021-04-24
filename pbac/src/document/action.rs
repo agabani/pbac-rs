@@ -1,73 +1,32 @@
-use crate::action::{Action, ScopedAction};
-
-#[derive(Debug, PartialEq)]
-pub struct ScopedActionDocument {
-    scope: DocumentToken<String>,
-    action: DocumentToken<ActionDocument>,
-}
+use crate::action::Action;
+use crate::document::wildcard::WildcardToken;
+use crate::ScopedAction;
 
 #[derive(Debug, PartialEq)]
 pub struct ActionDocument {
-    verb: DocumentToken<String>,
-    resource: DocumentToken<String>,
+    scoped_action: WildcardToken<ScopedActionToken>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum DocumentToken<T> {
-    Wildcard,
-    Value(T),
-}
-
-impl DocumentToken<ScopedActionDocument> {
+impl ActionDocument {
     pub fn parse(value: &str) -> Self {
-        match value {
-            "*" => Self::Wildcard,
-            value => Self::Value(ScopedActionDocument::parse(value)),
+        Self {
+            scoped_action: WildcardToken::<ScopedActionToken>::parse(value),
         }
     }
 
     pub fn is_match(&self, scoped_action: &ScopedAction) -> bool {
-        match self {
-            DocumentToken::Wildcard => true,
-            DocumentToken::Value(document) => document.is_match(scoped_action),
-        }
+        self.scoped_action.is_match(scoped_action)
     }
 }
 
-impl DocumentToken<ActionDocument> {
-    pub fn parse(value: &str) -> Self {
-        match value {
-            "*" => Self::Wildcard,
-            value => Self::Value(ActionDocument::parse(value)),
-        }
-    }
-
-    pub fn is_match(&self, action: &Action) -> bool {
-        match self {
-            DocumentToken::Wildcard => true,
-            DocumentToken::Value(document) => document.is_match(action),
-        }
-    }
+#[derive(Debug, PartialEq)]
+struct ScopedActionToken {
+    scope: WildcardToken<String>,
+    action: WildcardToken<ActionToken>,
 }
 
-impl DocumentToken<String> {
-    pub fn parse(value: &str) -> Self {
-        match value {
-            "*" => Self::Wildcard,
-            value => Self::Value(value.to_string()),
-        }
-    }
-
-    pub fn is_match(&self, value: &str) -> bool {
-        match self {
-            DocumentToken::Wildcard => true,
-            DocumentToken::Value(document) => document == value,
-        }
-    }
-}
-
-impl ScopedActionDocument {
-    pub fn parse(value: &str) -> Self {
+impl ScopedActionToken {
+    fn parse(value: &str) -> Self {
         match value.find(':') {
             None => panic!("TODO: return error on formatting error"),
             Some(position) => {
@@ -75,20 +34,42 @@ impl ScopedActionDocument {
                 let action = &value[position + 1..value.len()];
 
                 Self {
-                    scope: DocumentToken::<String>::parse(scope),
-                    action: DocumentToken::<ActionDocument>::parse(action),
+                    scope: WildcardToken::<String>::parse(scope),
+                    action: WildcardToken::<ActionToken>::parse(action),
                 }
             }
         }
     }
 
-    pub fn is_match(&self, scoped_action: &ScopedAction) -> bool {
+    fn is_match(&self, scoped_action: &ScopedAction) -> bool {
         self.scope.is_match(&scoped_action.scope) && self.action.is_match(&scoped_action.action)
     }
 }
 
-impl ActionDocument {
-    pub fn parse(value: &str) -> Self {
+impl WildcardToken<ScopedActionToken> {
+    fn parse(value: &str) -> Self {
+        match value {
+            "*" => Self::Wildcard,
+            value => Self::Value(ScopedActionToken::parse(value)),
+        }
+    }
+
+    fn is_match(&self, scoped_action: &ScopedAction) -> bool {
+        match self {
+            WildcardToken::Wildcard => true,
+            WildcardToken::Value(document) => document.is_match(scoped_action),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct ActionToken {
+    verb: WildcardToken<String>,
+    resource: WildcardToken<String>,
+}
+
+impl ActionToken {
+    fn parse(value: &str) -> Self {
         match value.find(':') {
             None => panic!("TODO: return error on formatting error"),
             Some(position) => {
@@ -96,15 +77,31 @@ impl ActionDocument {
                 let resource = &value[position + 1..value.len()];
 
                 Self {
-                    verb: DocumentToken::<String>::parse(verb),
-                    resource: DocumentToken::<String>::parse(resource),
+                    verb: WildcardToken::<String>::parse(verb),
+                    resource: WildcardToken::<String>::parse(resource),
                 }
             }
         }
     }
 
-    pub fn is_match(&self, action: &Action) -> bool {
+    fn is_match(&self, action: &Action) -> bool {
         self.verb.is_match(&action.verb) && self.resource.is_match(&action.resource)
+    }
+}
+
+impl WildcardToken<ActionToken> {
+    fn parse(value: &str) -> Self {
+        match value {
+            "*" => Self::Wildcard,
+            value => Self::Value(ActionToken::parse(value)),
+        }
+    }
+
+    fn is_match(&self, action: &Action) -> bool {
+        match self {
+            WildcardToken::Wildcard => true,
+            WildcardToken::Value(document) => document.is_match(action),
+        }
     }
 }
 
@@ -131,123 +128,123 @@ mod tests {
 
         #[test]
         fn wildcard() {
-            let expected = DocumentToken::<ScopedActionDocument>::Wildcard;
+            let expected = WildcardToken::<ScopedActionToken>::Wildcard;
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("*");
+            let actual = WildcardToken::<ScopedActionToken>::parse("*");
 
             assert_eq!(actual, expected);
         }
 
         #[test]
         fn scope_verb_resource() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Value("scope".to_string()),
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Value("verb".to_string()),
-                    resource: DocumentToken::Value("resource".to_string()),
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Value("scope".to_string()),
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Value("verb".to_string()),
+                    resource: WildcardToken::Value("resource".to_string()),
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("scope:verb:resource");
+            let actual = WildcardToken::<ScopedActionToken>::parse("scope:verb:resource");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn scope_verb_wildcard() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Value("scope".to_string()),
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Value("verb".to_string()),
-                    resource: DocumentToken::Wildcard,
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Value("scope".to_string()),
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Value("verb".to_string()),
+                    resource: WildcardToken::Wildcard,
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("scope:verb:*");
+            let actual = WildcardToken::<ScopedActionToken>::parse("scope:verb:*");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn scope_wildcard_resource() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Value("scope".to_string()),
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Wildcard,
-                    resource: DocumentToken::Value("resource".to_string()),
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Value("scope".to_string()),
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Wildcard,
+                    resource: WildcardToken::Value("resource".to_string()),
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("scope:*:resource");
+            let actual = WildcardToken::<ScopedActionToken>::parse("scope:*:resource");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn scope_wildcard() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Value("scope".to_string()),
-                action: DocumentToken::Wildcard,
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Value("scope".to_string()),
+                action: WildcardToken::Wildcard,
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("scope:*");
+            let actual = WildcardToken::<ScopedActionToken>::parse("scope:*");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn wildcard_verb_resource() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Wildcard,
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Value("verb".to_string()),
-                    resource: DocumentToken::Value("resource".to_string()),
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Wildcard,
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Value("verb".to_string()),
+                    resource: WildcardToken::Value("resource".to_string()),
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("*:verb:resource");
+            let actual = WildcardToken::<ScopedActionToken>::parse("*:verb:resource");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn wildcard_verb_wildcard() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Wildcard,
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Value("verb".to_string()),
-                    resource: DocumentToken::Wildcard,
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Wildcard,
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Value("verb".to_string()),
+                    resource: WildcardToken::Wildcard,
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("*:verb:*");
+            let actual = WildcardToken::<ScopedActionToken>::parse("*:verb:*");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn wildcard_wildcard_resource() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Wildcard,
-                action: DocumentToken::Value(ActionDocument {
-                    verb: DocumentToken::Wildcard,
-                    resource: DocumentToken::Value("resource".to_string()),
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Wildcard,
+                action: WildcardToken::Value(ActionToken {
+                    verb: WildcardToken::Wildcard,
+                    resource: WildcardToken::Value("resource".to_string()),
                 }),
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("*:*:resource");
+            let actual = WildcardToken::<ScopedActionToken>::parse("*:*:resource");
 
             assert_eq!(actual, expected)
         }
 
         #[test]
         fn wildcard_wildcard() {
-            let expected = DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                scope: DocumentToken::Wildcard,
-                action: DocumentToken::Wildcard,
+            let expected = WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                scope: WildcardToken::Wildcard,
+                action: WildcardToken::Wildcard,
             });
 
-            let actual = DocumentToken::<ScopedActionDocument>::parse("*:*");
+            let actual = WildcardToken::<ScopedActionToken>::parse("*:*");
 
             assert_eq!(actual, expected)
         }
@@ -261,7 +258,7 @@ mod tests {
 
             #[test]
             fn pass() {
-                let document = DocumentToken::<ScopedActionDocument>::Wildcard;
+                let document = WildcardToken::<ScopedActionToken>::Wildcard;
 
                 let scoped_action = ScopedAction::parse("scope:verb:resource");
 
@@ -318,12 +315,12 @@ mod tests {
                 assert_eq!(result, false);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Value("scope".to_string()),
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Value("verb".to_string()),
-                        resource: DocumentToken::Value("resource".to_string()),
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Value("scope".to_string()),
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Value("verb".to_string()),
+                        resource: WildcardToken::Value("resource".to_string()),
                     }),
                 })
             }
@@ -376,12 +373,12 @@ mod tests {
                 assert_eq!(result, true);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Value("scope".to_string()),
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Value("verb".to_string()),
-                        resource: DocumentToken::Wildcard,
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Value("scope".to_string()),
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Value("verb".to_string()),
+                        resource: WildcardToken::Wildcard,
                     }),
                 })
             }
@@ -434,12 +431,12 @@ mod tests {
                 assert_eq!(result, false);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Value("scope".to_string()),
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Wildcard,
-                        resource: DocumentToken::Value("resource".to_string()),
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Value("scope".to_string()),
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Wildcard,
+                        resource: WildcardToken::Value("resource".to_string()),
                     }),
                 })
             }
@@ -492,10 +489,10 @@ mod tests {
                 assert_eq!(result, true);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Value("scope".to_string()),
-                    action: DocumentToken::Wildcard,
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Value("scope".to_string()),
+                    action: WildcardToken::Wildcard,
                 })
             }
         }
@@ -547,12 +544,12 @@ mod tests {
                 assert_eq!(result, false);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Wildcard,
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Value("verb".to_string()),
-                        resource: DocumentToken::Value("resource".to_string()),
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Wildcard,
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Value("verb".to_string()),
+                        resource: WildcardToken::Value("resource".to_string()),
                     }),
                 })
             }
@@ -605,12 +602,12 @@ mod tests {
                 assert_eq!(result, true);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Wildcard,
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Value("verb".to_string()),
-                        resource: DocumentToken::Wildcard,
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Wildcard,
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Value("verb".to_string()),
+                        resource: WildcardToken::Wildcard,
                     }),
                 })
             }
@@ -663,12 +660,12 @@ mod tests {
                 assert_eq!(result, false);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Wildcard,
-                    action: DocumentToken::Value(ActionDocument {
-                        verb: DocumentToken::Wildcard,
-                        resource: DocumentToken::Value("resource".to_string()),
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Wildcard,
+                    action: WildcardToken::Value(ActionToken {
+                        verb: WildcardToken::Wildcard,
+                        resource: WildcardToken::Value("resource".to_string()),
                     }),
                 })
             }
@@ -721,10 +718,10 @@ mod tests {
                 assert_eq!(result, true);
             }
 
-            fn document() -> DocumentToken<ScopedActionDocument> {
-                DocumentToken::<ScopedActionDocument>::Value(ScopedActionDocument {
-                    scope: DocumentToken::Wildcard,
-                    action: DocumentToken::Wildcard,
+            fn document() -> WildcardToken<ScopedActionToken> {
+                WildcardToken::<ScopedActionToken>::Value(ScopedActionToken {
+                    scope: WildcardToken::Wildcard,
+                    action: WildcardToken::Wildcard,
                 })
             }
         }
