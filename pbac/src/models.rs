@@ -1,6 +1,4 @@
-/// The Action describes the specific action.
-#[derive(Debug, PartialEq)]
-pub struct Action(pub String);
+use crate::action::{ScopedAction, Token};
 
 /// The Effect describes the specific effect.
 #[derive(Debug, PartialEq)]
@@ -12,7 +10,7 @@ pub enum Effect {
 #[derive(Debug, PartialEq)]
 pub struct Policy {
     /// The Action element describes the specific action or actions that will be allowed or denied.
-    pub actions: Vec<Action>,
+    pub actions: Vec<Token<ScopedAction>>,
 
     /// The Effect element is required and specifies whether the statement results in an allow or an explicit deny.
     pub effect: Effect,
