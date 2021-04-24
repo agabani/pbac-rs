@@ -1,4 +1,4 @@
-use crate::document::ActionDocument;
+use crate::document::{ActionDocument, ResourceDocument};
 
 /// The Effect describes the specific effect.
 #[derive(Debug, PartialEq)]
@@ -19,13 +19,9 @@ pub struct Policy {
     pub principals: Vec<Principal>,
 
     /// The Resource element specifies the object or objects that the statement covers.
-    pub resources: Vec<Resource>,
+    pub resources: Vec<ResourceDocument>,
 }
 
 /// The Principal describes the specific principal.
 #[derive(Debug, PartialEq)]
 pub struct Principal(pub String);
-
-/// The Resource describes the specific resource.
-#[derive(Debug, PartialEq)]
-pub struct Resource(pub String);
