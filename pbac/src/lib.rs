@@ -1,5 +1,6 @@
 mod action;
 mod authorizer;
+mod document;
 mod models;
 
 pub use crate::authorizer::is_authorized;

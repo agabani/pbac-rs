@@ -1,4 +1,4 @@
-use crate::action::{ScopedAction, Token};
+use crate::document::{DocumentToken, ScopedActionDocument};
 
 /// The Effect describes the specific effect.
 #[derive(Debug, PartialEq)]
@@ -10,7 +10,7 @@ pub enum Effect {
 #[derive(Debug, PartialEq)]
 pub struct Policy {
     /// The Action element describes the specific action or actions that will be allowed or denied.
-    pub actions: Vec<Token<ScopedAction>>,
+    pub actions: Vec<DocumentToken<ScopedActionDocument>>,
 
     /// The Effect element is required and specifies whether the statement results in an allow or an explicit deny.
     pub effect: Effect,
