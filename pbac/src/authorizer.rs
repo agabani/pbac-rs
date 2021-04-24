@@ -24,8 +24,24 @@ pub fn is_authorized<'a>(
         })
         .collect::<Vec<_>>();
 
-    if !policy_matches.is_empty() {
-        return (Effect::Allow, policy_matches);
+    let denied_policy_matches = policy_matches
+        .iter()
+        .filter(|&policy| policy.effect == Effect::Deny)
+        .map(|policy| *policy)
+        .collect::<Vec<_>>();
+
+    if !denied_policy_matches.is_empty() {
+        return (Effect::Deny, denied_policy_matches);
+    }
+
+    let allowed_policy_matches = policy_matches
+        .iter()
+        .filter(|&policy| policy.effect == Effect::Allow)
+        .map(|policy| *policy)
+        .collect::<Vec<_>>();
+
+    if !allowed_policy_matches.is_empty() {
+        return (Effect::Allow, allowed_policy_matches);
     }
 
     (Effect::Deny, vec![])

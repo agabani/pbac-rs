@@ -34,6 +34,24 @@ fn explicit_allow_if_action_match() {
 }
 
 #[test]
+fn explicit_deny_if_action_match() {
+    let policies = vec![Policy {
+        actions: vec![ActionDocument::parse("scope:verb:resource")],
+        effect: Effect::Deny,
+        principals: vec![],
+        resources: vec![ResourceDocument::parse("*")],
+    }];
+
+    let action = ScopedAction::parse("scope:verb:resource");
+    let resources = &vec![ScopedResource::parse("scope:resource")];
+
+    let (effect, policies) = is_authorized(&policies, &action, &resources);
+
+    assert_eq!(effect, Effect::Deny);
+    assert_eq!(policies, &[policies[0]]);
+}
+
+#[test]
 fn implicit_deny_if_action_not_match() {
     let policies = vec![Policy {
         actions: vec![ActionDocument::parse("scope:verb:resource")],
@@ -66,6 +84,24 @@ fn explicit_allow_if_resource_match() {
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
     assert_eq!(effect, Effect::Allow);
+    assert_eq!(policies, &[policies[0]]);
+}
+
+#[test]
+fn explicit_deny_if_resource_match() {
+    let policies = vec![Policy {
+        actions: vec![ActionDocument::parse("*")],
+        effect: Effect::Deny,
+        principals: vec![],
+        resources: vec![ResourceDocument::parse("scope:resource")],
+    }];
+
+    let action = ScopedAction::parse("scope:verb:resource");
+    let resources = vec![ScopedResource::parse("scope:resource")];
+
+    let (effect, policies) = is_authorized(&policies, &action, &resources);
+
+    assert_eq!(effect, Effect::Deny);
     assert_eq!(policies, &[policies[0]]);
 }
 
