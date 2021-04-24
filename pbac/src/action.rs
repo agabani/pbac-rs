@@ -1,13 +1,13 @@
 #[derive(Debug, PartialEq)]
 pub struct ScopedAction {
-    scope: String,
-    action: Action,
+    pub scope: String,
+    pub action: Action,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Action {
-    verb: String,
-    resource: String,
+    pub verb: String,
+    pub resource: String,
 }
 
 impl ScopedAction {
