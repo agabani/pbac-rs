@@ -1,5 +1,5 @@
 use crate::action::ScopedAction;
-use crate::{Effect, Policy, ScopedResource};
+use crate::{Effect, Element, Policy, ScopedResource};
 
 pub fn is_authorized<'a>(
     policies: &'a [Policy],
@@ -27,7 +27,7 @@ pub fn is_authorized<'a>(
     let denied_policy_matches = policy_matches
         .iter()
         .filter(|&policy| policy.effect == Effect::Deny)
-        .map(|policy| *policy)
+        .copied()
         .collect::<Vec<_>>();
 
     if !denied_policy_matches.is_empty() {
@@ -37,7 +37,7 @@ pub fn is_authorized<'a>(
     let allowed_policy_matches = policy_matches
         .iter()
         .filter(|&policy| policy.effect == Effect::Allow)
-        .map(|policy| *policy)
+        .copied()
         .collect::<Vec<_>>();
 
     if !allowed_policy_matches.is_empty() {

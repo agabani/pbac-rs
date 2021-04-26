@@ -1,5 +1,6 @@
 use crate::action::Action;
 use crate::document::wildcard::WildcardToken;
+use crate::document::Element;
 use crate::ScopedAction;
 
 #[derive(Debug, PartialEq)]
@@ -7,15 +8,15 @@ pub struct ActionDocument {
     scoped_action: WildcardToken<ScopedActionToken>,
 }
 
-impl ActionDocument {
-    pub fn parse(value: &str) -> Self {
+impl Element<ScopedAction> for ActionDocument {
+    fn is_match(&self, value: &ScopedAction) -> bool {
+        self.scoped_action.is_match(value)
+    }
+
+    fn parse(value: &str) -> Self {
         Self {
             scoped_action: WildcardToken::<ScopedActionToken>::parse(value),
         }
-    }
-
-    pub fn is_match(&self, scoped_action: &ScopedAction) -> bool {
-        self.scoped_action.is_match(scoped_action)
     }
 }
 
@@ -25,7 +26,11 @@ struct ScopedActionToken {
     action: WildcardToken<ActionToken>,
 }
 
-impl ScopedActionToken {
+impl Element<ScopedAction> for ScopedActionToken {
+    fn is_match(&self, value: &ScopedAction) -> bool {
+        self.scope.is_match(&value.scope) && self.action.is_match(&value.action)
+    }
+
     fn parse(value: &str) -> Self {
         match value.find(':') {
             None => panic!("TODO: return error on formatting error"),
@@ -40,24 +45,19 @@ impl ScopedActionToken {
             }
         }
     }
-
-    fn is_match(&self, scoped_action: &ScopedAction) -> bool {
-        self.scope.is_match(&scoped_action.scope) && self.action.is_match(&scoped_action.action)
-    }
 }
+impl Element<ScopedAction> for WildcardToken<ScopedActionToken> {
+    fn is_match(&self, value: &ScopedAction) -> bool {
+        match self {
+            WildcardToken::Wildcard => true,
+            WildcardToken::Value(document) => document.is_match(value),
+        }
+    }
 
-impl WildcardToken<ScopedActionToken> {
     fn parse(value: &str) -> Self {
         match value {
             "*" => Self::Wildcard,
             value => Self::Value(ScopedActionToken::parse(value)),
-        }
-    }
-
-    fn is_match(&self, scoped_action: &ScopedAction) -> bool {
-        match self {
-            WildcardToken::Wildcard => true,
-            WildcardToken::Value(document) => document.is_match(scoped_action),
         }
     }
 }
@@ -68,7 +68,11 @@ struct ActionToken {
     resource: WildcardToken<String>,
 }
 
-impl ActionToken {
+impl Element<Action> for ActionToken {
+    fn is_match(&self, value: &Action) -> bool {
+        self.verb.is_match(&value.verb) && self.resource.is_match(&value.resource)
+    }
+
     fn parse(value: &str) -> Self {
         match value.find(':') {
             None => panic!("TODO: return error on formatting error"),
@@ -83,24 +87,20 @@ impl ActionToken {
             }
         }
     }
-
-    fn is_match(&self, action: &Action) -> bool {
-        self.verb.is_match(&action.verb) && self.resource.is_match(&action.resource)
-    }
 }
 
-impl WildcardToken<ActionToken> {
+impl Element<Action> for WildcardToken<ActionToken> {
+    fn is_match(&self, value: &Action) -> bool {
+        match self {
+            WildcardToken::Wildcard => true,
+            WildcardToken::Value(document) => document.is_match(value),
+        }
+    }
+
     fn parse(value: &str) -> Self {
         match value {
             "*" => Self::Wildcard,
             value => Self::Value(ActionToken::parse(value)),
-        }
-    }
-
-    fn is_match(&self, action: &Action) -> bool {
-        match self {
-            WildcardToken::Wildcard => true,
-            WildcardToken::Value(document) => document.is_match(action),
         }
     }
 }

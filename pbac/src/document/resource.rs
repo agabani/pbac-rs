@@ -1,20 +1,21 @@
 use crate::document::wildcard::WildcardToken;
 use crate::resource::ScopedResource;
+use crate::Element;
 
 #[derive(Debug, PartialEq)]
 pub struct ResourceDocument {
     scoped_resource: WildcardToken<ScopedResourceToken>,
 }
 
-impl ResourceDocument {
-    pub fn parse(value: &str) -> Self {
+impl Element<ScopedResource> for ResourceDocument {
+    fn is_match(&self, value: &ScopedResource) -> bool {
+        self.scoped_resource.is_match(value)
+    }
+
+    fn parse(value: &str) -> Self {
         Self {
             scoped_resource: WildcardToken::<ScopedResourceToken>::parse(value),
         }
-    }
-
-    pub fn is_match(&self, scoped_resource: &ScopedResource) -> bool {
-        self.scoped_resource.is_match(scoped_resource)
     }
 }
 
@@ -24,7 +25,11 @@ struct ScopedResourceToken {
     resource: WildcardToken<String>,
 }
 
-impl ScopedResourceToken {
+impl Element<ScopedResource> for ScopedResourceToken {
+    fn is_match(&self, value: &ScopedResource) -> bool {
+        self.scope.is_match(&value.scope) && self.resource.is_match(&value.resource)
+    }
+
     fn parse(value: &str) -> Self {
         match value.find(':') {
             None => panic!("TODO: return error on formatting error"),
@@ -39,25 +44,20 @@ impl ScopedResourceToken {
             }
         }
     }
-
-    fn is_match(&self, scoped_resource: &ScopedResource) -> bool {
-        self.scope.is_match(&scoped_resource.scope)
-            && self.resource.is_match(&scoped_resource.resource)
-    }
 }
 
-impl WildcardToken<ScopedResourceToken> {
+impl Element<ScopedResource> for WildcardToken<ScopedResourceToken> {
+    fn is_match(&self, value: &ScopedResource) -> bool {
+        match self {
+            WildcardToken::Wildcard => true,
+            WildcardToken::Value(document) => document.is_match(value),
+        }
+    }
+
     fn parse(value: &str) -> Self {
         match value {
             "*" => Self::Wildcard,
             value => Self::Value(ScopedResourceToken::parse(value)),
-        }
-    }
-
-    fn is_match(&self, scoped_resource: &ScopedResource) -> bool {
-        match self {
-            WildcardToken::Wildcard => true,
-            WildcardToken::Value(document) => document.is_match(scoped_resource),
         }
     }
 }

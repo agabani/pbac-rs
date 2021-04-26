@@ -1,5 +1,6 @@
 use pbac::{
-    is_authorized, ActionDocument, Effect, Policy, ResourceDocument, ScopedAction, ScopedResource,
+    is_authorized, ActionDocument, Effect, Element, Policy, ResourceDocument, ScopedAction,
+    ScopedResource,
 };
 
 #[test]
