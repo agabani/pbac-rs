@@ -1,6 +1,6 @@
 use crate::document::wildcard::WildcardToken;
 use crate::resource::ScopedResource;
-use crate::Element;
+use crate::{Element, ElementParseError};
 
 #[derive(Debug, PartialEq)]
 pub struct ResourceDocument {
@@ -12,10 +12,10 @@ impl Element<ScopedResource> for ResourceDocument {
         self.scoped_resource.is_match(value)
     }
 
-    fn parse(value: &str) -> Self {
-        Self {
-            scoped_resource: WildcardToken::<ScopedResourceToken>::parse(value),
-        }
+    fn parse(value: &str) -> Result<Self, ElementParseError> {
+        Ok(Self {
+            scoped_resource: WildcardToken::<ScopedResourceToken>::parse(value)?,
+        })
     }
 }
 
@@ -30,17 +30,19 @@ impl Element<ScopedResource> for ScopedResourceToken {
         self.scope.is_match(&value.scope) && self.resource.is_match(&value.resource)
     }
 
-    fn parse(value: &str) -> Self {
+    fn parse(value: &str) -> Result<Self, ElementParseError> {
         match value.find(':') {
-            None => panic!("TODO: return error on formatting error"),
+            None => Err(ElementParseError {
+                token: value.to_string(),
+            }),
             Some(position) => {
                 let scope = &value[0..position];
                 let resource = &value[position + 1..value.len()];
 
-                Self {
-                    scope: WildcardToken::<String>::parse(scope),
-                    resource: WildcardToken::<String>::parse(resource),
-                }
+                Ok(Self {
+                    scope: WildcardToken::<String>::parse(scope)?,
+                    resource: WildcardToken::<String>::parse(resource)?,
+                })
             }
         }
     }
@@ -54,11 +56,11 @@ impl Element<ScopedResource> for WildcardToken<ScopedResourceToken> {
         }
     }
 
-    fn parse(value: &str) -> Self {
-        match value {
+    fn parse(value: &str) -> Result<Self, ElementParseError> {
+        Ok(match value {
             "*" => Self::Wildcard,
-            value => Self::Value(ScopedResourceToken::parse(value)),
-        }
+            value => Self::Value(ScopedResourceToken::parse(value)?),
+        })
     }
 }
 
@@ -79,71 +81,176 @@ mod tests {
     mod parse {
         use super::*;
 
-        #[test]
-        fn wildcard() {
-            let expected = ResourceDocument {
-                scoped_resource: WildcardToken::Wildcard,
-            };
+        mod wildcard {
+            use super::*;
 
-            let actual = ResourceDocument::parse("*");
+            #[test]
+            fn pass() {
+                let expected = ResourceDocument {
+                    scoped_resource: WildcardToken::Wildcard,
+                };
 
-            assert_eq!(actual, expected);
+                let actual = ResourceDocument::parse("*").unwrap();
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn fail_empty() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse("").unwrap_err();
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn fail_token() {
+                let expected = ElementParseError {
+                    token: "token".to_string(),
+                };
+
+                let actual = ResourceDocument::parse("token").unwrap_err();
+
+                assert_eq!(actual, expected);
+            }
         }
 
-        #[test]
-        fn scope_resource() {
-            let expected = ResourceDocument {
-                scoped_resource: WildcardToken::<ScopedResourceToken>::Value(ScopedResourceToken {
-                    scope: WildcardToken::Value("scope".to_string()),
-                    resource: WildcardToken::Value("resource".to_string()),
-                }),
-            };
+        mod scope_resource {
+            use super::*;
 
-            let actual = ResourceDocument::parse("scope:resource");
+            #[test]
+            fn pass() {
+                let expected = ResourceDocument {
+                    scoped_resource: WildcardToken::<ScopedResourceToken>::Value(
+                        ScopedResourceToken {
+                            scope: WildcardToken::Value("scope".to_string()),
+                            resource: WildcardToken::Value("resource".to_string()),
+                        },
+                    ),
+                };
 
-            assert_eq!(actual, expected)
+                let actual = ResourceDocument::parse("scope:resource").unwrap();
+
+                assert_eq!(actual, expected)
+            }
+
+            #[test]
+            fn fail_scope_empty() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse("scope:").unwrap_err();
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn fail_empty_resource() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse(":resource").unwrap_err();
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn fail_empty_empty() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse(":").unwrap_err();
+
+                assert_eq!(actual, expected);
+            }
         }
 
-        #[test]
-        fn scope_wildcard() {
-            let expected = ResourceDocument {
-                scoped_resource: WildcardToken::<ScopedResourceToken>::Value(ScopedResourceToken {
-                    scope: WildcardToken::Value("scope".to_string()),
-                    resource: WildcardToken::Wildcard,
-                }),
-            };
+        mod scope_wildcard {
+            use super::*;
 
-            let actual = ResourceDocument::parse("scope:*");
+            #[test]
+            fn pass() {
+                let expected = ResourceDocument {
+                    scoped_resource: WildcardToken::<ScopedResourceToken>::Value(
+                        ScopedResourceToken {
+                            scope: WildcardToken::Value("scope".to_string()),
+                            resource: WildcardToken::Wildcard,
+                        },
+                    ),
+                };
 
-            assert_eq!(actual, expected)
+                let actual = ResourceDocument::parse("scope:*").unwrap();
+
+                assert_eq!(actual, expected)
+            }
+
+            #[test]
+            fn fail_empty_wildcard() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse(":*").unwrap_err();
+
+                assert_eq!(actual, expected)
+            }
         }
 
-        #[test]
-        fn wildcard_resource() {
-            let expected = ResourceDocument {
-                scoped_resource: WildcardToken::<ScopedResourceToken>::Value(ScopedResourceToken {
-                    scope: WildcardToken::Wildcard,
-                    resource: WildcardToken::Value("resource".to_string()),
-                }),
-            };
+        mod wildcard_resource {
+            use super::*;
 
-            let actual = ResourceDocument::parse("*:resource");
+            #[test]
+            fn pass() {
+                let expected = ResourceDocument {
+                    scoped_resource: WildcardToken::<ScopedResourceToken>::Value(
+                        ScopedResourceToken {
+                            scope: WildcardToken::Wildcard,
+                            resource: WildcardToken::Value("resource".to_string()),
+                        },
+                    ),
+                };
 
-            assert_eq!(actual, expected)
+                let actual = ResourceDocument::parse("*:resource").unwrap();
+
+                assert_eq!(actual, expected)
+            }
+
+            #[test]
+            fn fail_wildcard_empty() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let actual = ResourceDocument::parse("*:").unwrap_err();
+
+                assert_eq!(actual, expected)
+            }
         }
 
-        #[test]
-        fn wildcard_wildcard() {
-            let expected = ResourceDocument {
-                scoped_resource: WildcardToken::<ScopedResourceToken>::Value(ScopedResourceToken {
-                    scope: WildcardToken::Wildcard,
-                    resource: WildcardToken::Wildcard,
-                }),
-            };
+        mod wildcard_wildcard {
+            use super::*;
 
-            let actual = ResourceDocument::parse("*:*");
+            #[test]
+            fn pass() {
+                let expected = ResourceDocument {
+                    scoped_resource: WildcardToken::<ScopedResourceToken>::Value(
+                        ScopedResourceToken {
+                            scope: WildcardToken::Wildcard,
+                            resource: WildcardToken::Wildcard,
+                        },
+                    ),
+                };
 
-            assert_eq!(actual, expected)
+                let actual = ResourceDocument::parse("*:*").unwrap();
+
+                assert_eq!(actual, expected)
+            }
         }
     }
 
@@ -159,7 +266,7 @@ mod tests {
                     scoped_resource: WildcardToken::Wildcard,
                 };
 
-                let scoped_action = ScopedResource::parse("scope:resource");
+                let scoped_action = ScopedResource::parse("scope:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -174,7 +281,7 @@ mod tests {
             fn pass() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:resource");
+                let scoped_action = ScopedResource::parse("scope:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -185,7 +292,7 @@ mod tests {
             fn fail_scope() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("x:resource");
+                let scoped_action = ScopedResource::parse("x:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -196,7 +303,7 @@ mod tests {
             fn fail_resource() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:x");
+                let scoped_action = ScopedResource::parse("scope:x").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -220,7 +327,7 @@ mod tests {
             fn pass() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:resource");
+                let scoped_action = ScopedResource::parse("scope:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -231,7 +338,7 @@ mod tests {
             fn fail_scope() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("x:resource");
+                let scoped_action = ScopedResource::parse("x:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -242,7 +349,7 @@ mod tests {
             fn pass_resource() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:x");
+                let scoped_action = ScopedResource::parse("scope:x").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -266,7 +373,7 @@ mod tests {
             fn pass() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:resource");
+                let scoped_action = ScopedResource::parse("scope:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -277,7 +384,7 @@ mod tests {
             fn pass_scope() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("x:resource");
+                let scoped_action = ScopedResource::parse("x:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -288,7 +395,7 @@ mod tests {
             fn fail_resource() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:x");
+                let scoped_action = ScopedResource::parse("scope:x").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -312,7 +419,7 @@ mod tests {
             fn pass() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:resource");
+                let scoped_action = ScopedResource::parse("scope:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -323,7 +430,7 @@ mod tests {
             fn pass_scope() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("x:resource");
+                let scoped_action = ScopedResource::parse("x:resource").unwrap();
 
                 let result = document.is_match(&scoped_action);
 
@@ -334,7 +441,7 @@ mod tests {
             fn pass_resource() {
                 let document = document();
 
-                let scoped_action = ScopedResource::parse("scope:x");
+                let scoped_action = ScopedResource::parse("scope:x").unwrap();
 
                 let result = document.is_match(&scoped_action);
 

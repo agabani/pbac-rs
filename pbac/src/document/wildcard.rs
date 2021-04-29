@@ -1,3 +1,4 @@
+use crate::document::ElementParseError;
 use crate::Element;
 
 #[derive(Debug, PartialEq)]
@@ -14,10 +15,100 @@ impl Element<String> for WildcardToken<String> {
         }
     }
 
-    fn parse(value: &str) -> Self {
+    fn parse(value: &str) -> Result<Self, ElementParseError> {
         match value {
-            "*" => Self::Wildcard,
-            value => Self::Value(value.to_string()),
+            "*" => Ok(Self::Wildcard),
+            value => match value.len() {
+                0 => Err(ElementParseError {
+                    token: value.to_string(),
+                }),
+                _ => Ok(Self::Value(value.to_string())),
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod parse {
+        use super::*;
+
+        mod wildcard {
+            use super::*;
+
+            #[test]
+            fn pass() {
+                let expected = WildcardToken::<String>::Wildcard;
+
+                let result = WildcardToken::<String>::parse("*").unwrap();
+
+                assert_eq!(result, expected);
+            }
+        }
+
+        mod value {
+            use super::*;
+
+            #[test]
+            fn pass() {
+                let expected = WildcardToken::<String>::Value("value".to_string());
+
+                let result = WildcardToken::<String>::parse("value").unwrap();
+
+                assert_eq!(result, expected);
+            }
+
+            #[test]
+            fn fail_empty() {
+                let expected = ElementParseError {
+                    token: "".to_string(),
+                };
+
+                let result = WildcardToken::<String>::parse("").unwrap_err();
+
+                assert_eq!(result, expected);
+            }
+        }
+    }
+
+    mod is_match {
+        use super::*;
+
+        mod wildcard {
+            use super::*;
+
+            #[test]
+            fn pass() {
+                let document = WildcardToken::<String>::Wildcard;
+
+                let result = document.is_match(&"value".to_string());
+
+                assert_eq!(result, true);
+            }
+        }
+
+        mod value {
+            use super::*;
+
+            #[test]
+            fn pass() {
+                let document = WildcardToken::<String>::Value("value".to_string());
+
+                let result = document.is_match(&"value".to_string());
+
+                assert_eq!(result, true);
+            }
+
+            #[test]
+            fn fail() {
+                let document = WildcardToken::<String>::Value("value".to_string());
+
+                let result = document.is_match(&"x".to_string());
+
+                assert_eq!(result, false);
+            }
         }
     }
 }

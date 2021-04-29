@@ -7,8 +7,8 @@ use pbac::{
 fn implicit_deny_when_no_policies() {
     let policies = vec![];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -19,14 +19,14 @@ fn implicit_deny_when_no_policies() {
 #[test]
 fn explicit_allow_if_action_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("scope:verb:resource")],
+        actions: vec![ActionDocument::parse("scope:verb:resource").unwrap()],
         effect: Effect::Allow,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("*")],
+        resources: vec![ResourceDocument::parse("*").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = &vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = &vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -37,14 +37,14 @@ fn explicit_allow_if_action_match() {
 #[test]
 fn explicit_deny_if_action_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("scope:verb:resource")],
+        actions: vec![ActionDocument::parse("scope:verb:resource").unwrap()],
         effect: Effect::Deny,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("*")],
+        resources: vec![ResourceDocument::parse("*").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = &vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = &vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -55,14 +55,14 @@ fn explicit_deny_if_action_match() {
 #[test]
 fn implicit_deny_if_action_not_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("scope:verb:resource")],
+        actions: vec![ActionDocument::parse("scope:verb:resource").unwrap()],
         effect: Effect::Allow,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("*")],
+        resources: vec![ResourceDocument::parse("*").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:other-resource");
-    let resources = vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:other-resource").unwrap();
+    let resources = vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -73,14 +73,14 @@ fn implicit_deny_if_action_not_match() {
 #[test]
 fn explicit_allow_if_resource_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("*")],
+        actions: vec![ActionDocument::parse("*").unwrap()],
         effect: Effect::Allow,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("scope:resource")],
+        resources: vec![ResourceDocument::parse("scope:resource").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -91,14 +91,14 @@ fn explicit_allow_if_resource_match() {
 #[test]
 fn explicit_deny_if_resource_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("*")],
+        actions: vec![ActionDocument::parse("*").unwrap()],
         effect: Effect::Deny,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("scope:resource")],
+        resources: vec![ResourceDocument::parse("scope:resource").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = vec![ScopedResource::parse("scope:resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = vec![ScopedResource::parse("scope:resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
@@ -109,14 +109,14 @@ fn explicit_deny_if_resource_match() {
 #[test]
 fn implicit_deny_if_resource_not_match() {
     let policies = vec![Policy {
-        actions: vec![ActionDocument::parse("*")],
+        actions: vec![ActionDocument::parse("*").unwrap()],
         effect: Effect::Allow,
         principals: vec![],
-        resources: vec![ResourceDocument::parse("scope:resource")],
+        resources: vec![ResourceDocument::parse("scope:resource").unwrap()],
     }];
 
-    let action = ScopedAction::parse("scope:verb:resource");
-    let resources = vec![ScopedResource::parse("scope:other-resource")];
+    let action = ScopedAction::parse("scope:verb:resource").unwrap();
+    let resources = vec![ScopedResource::parse("scope:other-resource").unwrap()];
 
     let (effect, policies) = is_authorized(&policies, &action, &resources);
 
